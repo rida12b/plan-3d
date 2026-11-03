@@ -35,6 +35,7 @@
 [hidden] { display: none !important; }
 
 html, body {
+  touch-action: manipulation; /* no double-tap zoom on buttons */
   margin: 0;
   height: 100%;
   overflow: hidden;
@@ -79,21 +80,6 @@ button.danger { color: var(--danger); }
 
 #viewport { position: fixed; inset: 0; touch-action: none; }
 #viewport canvas { display: block; width: 100%; height: 100%; }
-
-.legend {
-  position: fixed;
-  left: 10px;
-  top: calc(env(safe-area-inset-top) + 66px);
-  margin: 0;
-  padding: 6px 10px;
-  list-style: none;
-  font-size: 12px;
-  background: color-mix(in srgb, var(--surface) 85%, transparent);
-  border-radius: 10px;
-  pointer-events: none;
-}
-.legend li { display: flex; align-items: center; gap: 6px; }
-.legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 
 .fab {
   position: fixed;
@@ -155,8 +141,8 @@ button.danger { color: var(--danger); }
 }
 .unit { padding-bottom: 10px; color: var(--muted); }
 
-.swatches { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
-.swatch { width: 30px; height: 30px; min-height: 0; padding: 0; border-radius: 50%; border: 2px solid var(--border); }
+.swatches { display: flex; gap: 8px; flex-wrap: nowrap; overflow-x: auto; padding: 3px 3px 6px; margin: 0 -3px 6px; }
+.swatch { flex: 0 0 auto; width: 32px; height: 32px; min-height: 0; padding: 0; border-radius: 50%; border: 2px solid var(--border); }
 .swatch.active { outline: 3px solid var(--accent); outline-offset: 2px; }
 
 .panel-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
@@ -168,23 +154,77 @@ button.danger { color: var(--danger); }
 .catalog-name { font-size: 13px; font-weight: 600; }
 .catalog-size { font-size: 11px; color: var(--muted); }
 
-.room-preview { display: flex; justify-content: center; margin: 4px 0 10px; color: var(--text); }
-.room-preview svg { width: 100%; max-width: 220px; height: auto; max-height: 200px; }
-.room-errors { margin: 0 0 10px; padding: 8px 10px; border-radius: 10px; color: var(--danger);
-  background: color-mix(in srgb, var(--danger) 12%, transparent); font-size: 13px; font-weight: 600; }
-.room-errors p { margin: 2px 0; }
-.dim-group { margin: 0 0 12px; padding: 8px 10px 4px; border: 1px solid var(--border); border-radius: 12px;
+.plan-tip { margin: 6px 0 4px; font-size: 14px; font-weight: 600; color: var(--accent); }
+.plan-box { display: flex; justify-content: center; margin: 0 -6px 10px; }
+.room-plan { width: 100%; height: auto; max-height: 58vh; touch-action: manipulation; }
+.plan-floor { fill: #d8c3a5; stroke: var(--text); stroke-linejoin: round; }
+.plan-dims line { stroke: var(--muted); }
+.cote { cursor: pointer; }
+.cote rect { fill: var(--surface); stroke: var(--accent); }
+.cote text { fill: var(--accent); font-weight: 700; font-family: inherit; pointer-events: none; }
+.cote:active rect, .cote:focus rect { fill: color-mix(in srgb, var(--accent) 18%, var(--surface)); }
+.cote:focus { outline: none; }
+.more-dims { margin: 0 0 12px; }
+.more-dims summary { cursor: pointer; padding: 8px 0; font-size: 14px; font-weight: 600; }
+.more-error { margin: 6px 0 0; color: var(--danger); font-size: 13px; font-weight: 600; }
+.dim-group { margin: 0; padding: 8px 10px; border: 1px solid var(--border); border-radius: 12px;
   display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.dim-group legend { padding: 0 6px; font-weight: 600; font-size: 14px; }
 .dim-field { display: flex; flex-direction: column; justify-content: flex-end; gap: 3px; font-size: 12px; color: var(--muted); }
 .dim-field input { font: inherit; font-size: 16px; color: var(--text); background: var(--surface-2);
   border: 1px solid var(--border); border-radius: 8px; padding: 7px 8px; width: 100%; }
 .dim-field input.invalid { border-color: var(--danger); outline: 2px solid color-mix(in srgb, var(--danger) 40%, transparent); }
-.dim-rest { grid-column: 1 / -1; margin: 0 0 4px; font-size: 12px; color: var(--muted); }
-.dim-rest b { color: var(--text); }
-.dim-rest b.bad { color: var(--danger); }
+.cote-editor { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; padding: 16px;
+  background: rgba(0, 0, 0, 0.45); }
+.cote-card { width: min(340px, 100%); padding: 16px; border-radius: 16px; background: var(--surface);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); }
+.cote-title { display: block; font-weight: 700; margin-bottom: 10px; }
+.cote-input-row { display: flex; align-items: center; gap: 8px; }
+.cote-input-row input { flex: 1; font: inherit; font-size: 22px; font-weight: 700; color: var(--text);
+  background: var(--surface-2); border: 2px solid var(--accent); border-radius: 10px; padding: 8px 10px; min-width: 0; }
+.cote-error { min-height: 1.2em; margin: 8px 0; color: var(--danger); font-size: 13px; font-weight: 600; }
+.cote-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .room-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .room-actions button { font-size: 13px; white-space: normal; }
+
+.swatches { scrollbar-width: none; }
+.swatches::-webkit-scrollbar { display: none; }
+.labels-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.furniture-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #111827;
+  background: rgba(255, 255, 255, 0.82);
+  will-change: transform;
+}
+.furniture-label.selected { background: #1d4ed8; color: #fff; }
+.recenter {
+  position: fixed;
+  right: 14px;
+  bottom: calc(env(safe-area-inset-bottom) + 18px);
+  z-index: 10;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  font-size: 22px;
+  background: var(--surface);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+}
+#item-panel { max-height: min(300px, 42vh); }
+#item-panel .panel-status { margin: 4px 0 0; font-size: 14px; }
+#item-panel .panel-distances { margin: 0 0 6px; }
+#item-panel .size-row { margin-bottom: 6px; }
+.hint .legend { list-style: none; padding: 0; margin: 0 0 14px; display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 13px; }
+.hint .legend li { display: flex; align-items: center; gap: 6px; margin: 0; }
+.hint .legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
 
 .hint {
   position: fixed;

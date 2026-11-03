@@ -1,42 +1,13 @@
-// "Pièce" sheet: every measure of the plan is editable, with a live 2D preview.
-// Valid measures are applied immediately; invalid ones are explained and not applied.
-import { computeRoom, derivedLengths, validateDimensions } from './room-config.js';
+// "Pièce" sheet: a dimensioned plan where each measure is tapped to be changed,
+// plus a folded list with the heights and every measure.
+import { validateDimensions } from './room-config.js';
+import { COTES, coteValue, roomPlanSvg } from './room-plan-svg.js';
 
-const GROUPS = [
-  { title: 'Pièce', fields: [
-    ['width', 'Largeur (mur du fond)'], ['depth', 'Profondeur (côté porte-fenêtre)'], ['wallHeight', 'Hauteur sous plafond'],
-  ] },
-  { title: 'Côté porte-fenêtre (gauche)', rest: 'leftRest', restLabel: 'Reste jusqu’au coin', fields: [
-    ['frenchWindowTop', 'Du coin du fond à la porte-fenêtre'], ['frenchWindowLength', 'Largeur porte-fenêtre'],
-    ['frenchWindowHeight', 'Hauteur porte-fenêtre'], ['frenchWindowToRadiator', 'Porte-fenêtre → radiateur'],
-    ['radiatorLength', 'Longueur radiateur'],
-  ] },
-  { title: 'Côté entrée (droite)', rest: 'stepDepth', restLabel: 'Retour de mur après la porte (vertical)', fields: [
-    ['rightWall', 'Du coin du fond à la porte'], ['doorWidth', 'Largeur porte'], ['doorHeight', 'Hauteur porte'],
-    ['stepWidth', 'Retour de mur (horizontal)'],
-  ] },
-  { title: 'Côté fenêtre (bas)', rest: 'bottomRest', restLabel: 'Mur entre décroché et retour', fields: [
-    ['windowOffset', 'Du coin à la fenêtre'], ['windowWidth', 'Largeur fenêtre'], ['windowSill', 'Hauteur sous la fenêtre'],
-    ['windowHeight', 'Hauteur fenêtre'], ['windowToNotch', 'Fenêtre → décroché'], ['notchWidth', 'Largeur décroché'],
-    ['notchDepth', 'Profondeur décroché'],
-  ] },
+const MORE_FIELDS = [
+  ['wallHeight', 'Hauteur sous plafond'], ['frenchWindowHeight', 'Hauteur porte-fenêtre'],
+  ['doorHeight', "Hauteur porte d'entrée"], ['windowSill', 'Hauteur sous la fenêtre'], ['windowHeight', 'Hauteur fenêtre'],
+  ...Object.entries(COTES).filter(([key]) => !COTES[key].apply).map(([key, c]) => [key, c.label]),
 ];
-
-const COLORS = { 'french-window': '#d64545', door: '#2847a8', window: '#5aa9d6' };
-
-function previewSvg(room) {
-  const { maxX, maxY } = room.bounds;
-  const pad = Math.max(maxX, maxY) * 0.06;
-  const stroke = Math.max(maxX, maxY) / 90;
-  const points = room.outline.map(([x, y]) => `${x},${y}`).join(' ');
-  const openings = room.openings.map((o) =>
-    `<line x1="${o.from[0]}" y1="${o.from[1]}" x2="${o.to[0]}" y2="${o.to[1]}" stroke="${COLORS[o.kind]}" stroke-width="${stroke * 2.2}"/>`).join('');
-  const r = room.radiator;
-  const radiator = r.length > 0 ? `<rect x="${r.x}" y="${r.y}" width="${r.depth * 1.5}" height="${r.length}" fill="#3fa34d"/>` : '';
-  return `<svg viewBox="${-pad} ${-pad} ${maxX + 2 * pad} ${maxY + 2 * pad}" role="img" aria-label="Aperçu du plan">
-    <polygon points="${points}" fill="#d8c3a5" stroke="currentColor" stroke-width="${stroke}" stroke-linejoin="round"/>
-    ${openings}${radiator}</svg>`;
-}
 
 export function createRoomSheet(root, roomStore, layoutStore) {
   root.innerHTML = `
@@ -44,61 +15,109 @@ export function createRoomSheet(root, roomStore, layoutStore) {
       <strong>Dimensions de la pièce</strong>
       <button class="icon-btn" data-close aria-label="Fermer">✕</button>
     </div>
-    <p class="sheet-tip">Toutes les mesures sont en cm. La 3D se met à jour pendant que tu tapes.</p>
-    <div class="room-preview"></div>
-    <div class="room-errors" role="alert" hidden></div>
-    ${GROUPS.map((g) => `
-      <fieldset class="dim-group">
-        <legend>${g.title}</legend>
-        ${g.fields.map(([key, label]) => `
+    <p class="plan-tip">👆 Touche un chiffre bleu pour le changer (en cm).</p>
+    <div class="plan-box"></div>
+    <details class="more-dims">
+      <summary>Hauteurs (plafond, portes, fenêtre) et liste des mesures</summary>
+      <div class="dim-group">
+        ${MORE_FIELDS.map(([key, label]) => `
           <label class="dim-field">${label}<input type="number" inputmode="numeric" min="0" data-key="${key}" /></label>`).join('')}
-        ${g.rest ? `<p class="dim-rest">${g.restLabel} : <b data-rest="${g.rest}"></b></p>` : ''}
-      </fieldset>`).join('')}
+      </div>
+      <p class="more-error" role="alert"></p>
+    </details>
     <div class="room-actions">
       <button data-reset-room>Remettre le plan d'origine</button>
       <button data-clear-furniture class="danger">Retirer tous les meubles</button>
+    </div>
+    <div class="cote-editor" hidden>
+      <form class="cote-card">
+        <label class="cote-title" for="cote-input"></label>
+        <div class="cote-input-row"><input id="cote-input" type="number" inputmode="numeric" min="0" step="1" /><span>cm</span></div>
+        <p class="cote-error" role="alert"></p>
+        <div class="cote-buttons"><button type="button" data-cancel>Annuler</button><button type="submit" class="primary">OK</button></div>
+      </form>
     </div>`;
 
-  const inputs = [...root.querySelectorAll('[data-key]')];
-  const preview = root.querySelector('.room-preview');
-  const errorBox = root.querySelector('.room-errors');
+  const planBox = root.querySelector('.plan-box');
+  const listInputs = [...root.querySelectorAll('[data-key]')];
+  const moreError = root.querySelector('.more-error');
+  const editor = root.querySelector('.cote-editor');
+  const editorTitle = editor.querySelector('.cote-title');
+  const editorInput = editor.querySelector('input');
+  const editorError = editor.querySelector('.cote-error');
+  let editingKey = null;
 
-  const readForm = () => Object.fromEntries(inputs.map((i) => [i.dataset.key, i.value === '' ? NaN : Number(i.value)]));
-
-  function fillForm(dims) {
-    for (const input of inputs) input.value = String(dims[input.dataset.key]);
+  function render() {
+    const { dims } = roomStore.room;
+    planBox.innerHTML = roomPlanSvg(roomStore.room);
+    for (const input of listInputs) {
+      if (document.activeElement !== input) input.value = String(dims[input.dataset.key]);
+      input.classList.remove('invalid');
+    }
   }
 
-  function refresh(dims) {
-    for (const input of inputs) {
-      const v = dims[input.dataset.key];
-      input.classList.toggle('invalid', !Number.isFinite(v) || v < 0);
-    }
-    const rest = derivedLengths(dims);
-    for (const el of root.querySelectorAll('[data-rest]')) {
-      const value = rest[el.dataset.rest];
-      el.textContent = Number.isFinite(value) ? `${value} cm` : '—';
-      el.classList.toggle('bad', !(value >= 0));
-    }
+  /** Applies new measures; returns the first problem, or '' when applied. */
+  function tryApply(dims) {
     const errors = validateDimensions(dims);
-    errorBox.hidden = errors.length === 0;
-    errorBox.innerHTML = errors.map((e) => `<p>⚠️ ${e}</p>`).join('');
-    if (errors.length === 0) preview.innerHTML = previewSvg(computeRoom(dims));
-    return errors;
+    if (errors.length) return errors[0];
+    roomStore.setDimensions(dims);
+    render();
+    return '';
   }
 
-  root.addEventListener('input', (event) => {
-    if (!event.target.matches('[data-key]')) return;
-    const dims = readForm();
-    if (refresh(dims).length === 0) roomStore.setDimensions(dims);
+  function openEditor(key) {
+    editingKey = key;
+    editorTitle.textContent = COTES[key].label;
+    editorInput.value = String(Math.round(coteValue(roomStore.room.dims, key)));
+    editorError.textContent = '';
+    editor.hidden = false;
+    editorInput.focus();
+    editorInput.select();
+  }
+
+  editor.querySelector('form').addEventListener('submit', (event) => {
+    event.preventDefault();
+    const value = Math.round(Number(editorInput.value));
+    if (editorInput.value === '' || !Number.isFinite(value) || value < 0) {
+      editorError.textContent = 'Tape un nombre positif.';
+      return;
+    }
+    const dims = roomStore.room.dims;
+    const next = COTES[editingKey].apply ? COTES[editingKey].apply(dims, value) : { ...dims, [editingKey]: value };
+    const problem = tryApply(next);
+    if (problem) editorError.textContent = `⚠️ ${problem}`;
+    else editor.hidden = true;
   });
+
+  editor.addEventListener('click', (event) => {
+    if (event.target === editor || event.target.closest('[data-cancel]')) editor.hidden = true;
+  });
+
+  planBox.addEventListener('click', (event) => {
+    const cote = event.target.closest('.cote');
+    if (cote) openEditor(cote.dataset.key);
+  });
+  planBox.addEventListener('keydown', (event) => {
+    const cote = event.target.closest('.cote');
+    if (cote && (event.key === 'Enter' || event.key === ' ')) openEditor(cote.dataset.key);
+  });
+
+  for (const input of listInputs) {
+    input.addEventListener('change', () => {
+      const value = Math.round(Number(input.value));
+      const problem = input.value === '' || !Number.isFinite(value) || value < 0
+        ? 'Tape un nombre positif.'
+        : tryApply({ ...roomStore.room.dims, [input.dataset.key]: value });
+      input.classList.toggle('invalid', Boolean(problem));
+      moreError.textContent = problem ? `⚠️ ${problem}` : '';
+    });
+  }
 
   root.addEventListener('click', (event) => {
     if (event.target.closest('[data-close]')) root.hidden = true;
     if (event.target.closest('[data-reset-room]')) {
       roomStore.reset();
-      fillForm(roomStore.room.dims);
-      refresh(roomStore.room.dims);
+      render();
     }
     if (event.target.closest('[data-clear-furniture]') && layoutStore.items.length
         && window.confirm('Retirer tous les meubles du plan ?')) {
@@ -109,8 +128,8 @@ export function createRoomSheet(root, roomStore, layoutStore) {
   return {
     open() {
       layoutStore.select(null);
-      fillForm(roomStore.room.dims);
-      refresh(roomStore.room.dims);
+      editor.hidden = true;
+      render();
       root.hidden = false;
     },
   };

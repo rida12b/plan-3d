@@ -61,6 +61,17 @@ export function polygonsOverlap(a, b) {
   return true;
 }
 
+/** Distance (cm) from a plan point to an item footprint; 0 when the point is on the item. */
+export function distanceToFootprint(px, py, f) {
+  const c = Math.cos(toRad(f.rot));
+  const s = Math.sin(toRad(f.rot));
+  const dx = px - f.x;
+  const dy = py - f.y;
+  const lx = Math.abs(dx * c + dy * s) - f.w / 2;  // point expressed in the item frame
+  const ly = Math.abs(-dx * s + dy * c) - f.d / 2;
+  return Math.hypot(Math.max(lx, 0), Math.max(ly, 0));
+}
+
 /** Keep the item centre so that its footprint stays inside the bounds. */
 export function clampInside(f, bounds) {
   const { hx, hy } = halfExtents(f);

@@ -89,8 +89,7 @@ export function createItemPanel(root, store, { onVisibilityChange, onAddRequest 
     status.classList.toggle('bad', issues.length > 0);
 
     const dist = wallDistances(item, store.room.bounds);
-    distances.textContent = `Écart aux murs (cm) — côté porte-fenêtre ${dist.left} · côté entrée ${dist.right}`
-      + ` · mur du fond ${dist.top} · côté fenêtre ${dist.bottom}`;
+    distances.textContent = `Écart aux murs : ⬅ ${dist.left} · ➡ ${dist.right} · ⬆ ${dist.top} · ⬇ ${dist.bottom} cm`;
   }
 
   store.subscribe(render);

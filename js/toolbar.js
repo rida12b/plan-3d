@@ -1,6 +1,6 @@
 // Top bar actions: view switch, low walls, photo, reset, help hint.
 
-const HINT_KEY = 'plan3d.hint.seen';
+const HINT_KEY = 'plan3d.hint.v2'; // v2 = new touch controls, show the help again
 
 async function sharePhoto(canvas) {
   const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
@@ -38,7 +38,7 @@ export function createToolbar(sceneApi) {
   viewBtn.addEventListener('click', () => {
     const next = sceneApi.view === '3d' ? 'top' : '3d';
     sceneApi.setView(next);
-    viewBtn.textContent = next === '3d' ? 'Vue dessus' : 'Vue 3D';
+    viewBtn.textContent = next === '3d' ? 'Plan' : '3D';
   });
 
   wallsBtn.addEventListener('click', () => {
@@ -48,6 +48,7 @@ export function createToolbar(sceneApi) {
     wallsBtn.setAttribute('aria-pressed', String(lowWalls));
   });
 
+  document.getElementById('btn-recenter').addEventListener('click', () => sceneApi.recenter());
   document.getElementById('btn-photo').addEventListener('click', () => sharePhoto(sceneApi.renderer.domElement));
 
   document.getElementById('btn-help').addEventListener('click', () => { hint.hidden = false; });

@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
   <meta name="theme-color" content="#1f2937" />
   <title>Plan 3D Meublé</title>
   <link rel="stylesheet" href="styles.css" />
@@ -23,7 +23,7 @@
       <span id="room-size"></span>
     </div>
     <nav class="actions">
-      <button id="btn-view">Vue dessus</button>
+      <button id="btn-view" aria-label="Changer de vue">3D</button>
       <button id="btn-walls" aria-pressed="false">Murs bas</button>
       <button id="btn-photo" class="icon-btn" aria-label="Enregistrer une image">📷</button>
       <button id="btn-help" class="icon-btn" aria-label="Aide">?</button>
@@ -33,25 +33,24 @@
 
   <main id="viewport" aria-label="Vue 3D de la pièce"></main>
 
-  <ul class="legend" aria-label="Légende">
-    <li><i style="background:#2847a8"></i>Porte d'entrée</li>
-    <li><i style="background:#d64545"></i>Porte-fenêtre</li>
-    <li><i style="background:#5aa9d6"></i>Fenêtre</li>
-    <li><i style="background:#3fa34d"></i>Radiateur</li>
-    <li><i style="background:rgba(40,71,168,0.3)"></i>Ouverture porte</li>
-  </ul>
-
   <div id="hint" class="hint" role="dialog" aria-label="Mode d'emploi" hidden>
     <div class="hint-card">
       <strong>Comment ça marche</strong>
       <ul>
         <li>➕ <b>Ajouter un meuble</b> en bas de l'écran</li>
-        <li>👆 Appuie sur un meuble et <b>glisse</b> pour le déplacer</li>
-        <li>🔄 1 doigt sur le vide : tourner la vue</li>
-        <li>🤏 2 doigts : zoomer et déplacer la vue</li>
+        <li>👆 Pose le doigt sur un meuble et <b>glisse</b> pour le déplacer</li>
+        <li>🤏 2 doigts : zoomer · bouton ⌖ : revenir à la pièce entière</li>
+        <li>🧊 <b>3D</b> en haut pour voir le résultat (1 doigt : tourner)</li>
         <li>🟥 Meuble en rouge = il touche un mur, un autre meuble ou la zone de la porte</li>
         <li>📏 Change les dimensions pour mettre <b>tes vrais meubles</b></li>
         <li>📐 En haut : change les <b>mesures de la pièce</b></li>
+      </ul>
+      <ul class="legend" aria-label="Légende">
+        <li><i style="background:#2847a8"></i>Porte d'entrée</li>
+        <li><i style="background:#d64545"></i>Porte-fenêtre</li>
+        <li><i style="background:#5aa9d6"></i>Fenêtre</li>
+        <li><i style="background:#3fa34d"></i>Radiateur</li>
+        <li><i style="background:rgba(40,71,168,0.3)"></i>Zone d'ouverture de la porte</li>
       </ul>
       <button class="primary">C'est parti</button>
     </div>
@@ -61,6 +60,7 @@
   <section id="catalog-sheet" class="sheet sheet--tall" hidden></section>
   <section id="room-sheet" class="sheet sheet--tall" hidden></section>
   <button id="btn-add" class="fab">＋ Ajouter un meuble</button>
+  <button id="btn-recenter" class="recenter" aria-label="Voir toute la pièce">⌖</button>
 
   <noscript>Active JavaScript pour voir le plan 3D.</noscript>
   <script type="module" src="js/main.js"></script>
